@@ -10,6 +10,7 @@ import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RadioGroup;
 
 import com.jakewharton.rxbinding.view.RxView;
 import com.team2052.frckrawler.R;
@@ -77,13 +78,28 @@ public class ScoutHomeFragment extends Fragment implements View.OnClickListener 
     public Action1<Void> startScoutingActivity(int type) {
         return aVoid -> {
             if (mEvent != null) {
-                startActivity(ScoutActivity.newInstance(getActivity(), mEvent, type));
+
+
+                switch(type){
+                    case ScoutActivity.MATCH_SCOUT_TYPE:
+                        Intent sa = ScoutActivity.newInstance(getActivity(), mEvent, ScoutActivity.MATCH_SCOUT_TYPE);
+                        sa.putExtra("teampos",((RadioGroup)(this.getView().findViewById(getResources().getIdentifier("teamPosButtons","id",getActivity().getPackageName())))).indexOfChild(this.getView().findViewById(((RadioGroup)(this.getView().findViewById(getResources().getIdentifier("teamPosButtons","id",getActivity().getPackageName())))).getCheckedRadioButtonId())));
+                        startActivity(sa);
+                        break;
+                    case ScoutActivity.PIT_SCOUT_TYPE:
+                        startActivity(ScoutActivity.newInstance(getActivity(), mEvent, type));
+                        break;
+                }
+
+
+
             } else {
                 SnackbarUtil.make(getView(), "Unable to find event", Snackbar.LENGTH_LONG).show();
                 setCurrentEvent(ScoutUtil.getScoutEvent(getContext()));
             }
         };
     }
+
 
     @Override
 

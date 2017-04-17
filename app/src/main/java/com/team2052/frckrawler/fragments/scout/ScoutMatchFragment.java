@@ -6,15 +6,21 @@ import android.support.design.widget.TextInputLayout;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.firebase.crash.FirebaseCrash;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.jakewharton.rxbinding.widget.RxTextView;
 import com.team2052.frckrawler.R;
 import com.team2052.frckrawler.database.metric.MetricValue;
 import com.team2052.frckrawler.db.Event;
+import com.team2052.frckrawler.db.Match;
 import com.team2052.frckrawler.db.MatchComment;
+import com.team2052.frckrawler.db.MatchDao;
 import com.team2052.frckrawler.db.MatchDatum;
 import com.team2052.frckrawler.db.Metric;
 import com.team2052.frckrawler.db.Robot;
@@ -23,6 +29,9 @@ import com.team2052.frckrawler.util.MetricHelper;
 
 import org.greenrobot.greendao.query.QueryBuilder;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -34,9 +43,12 @@ import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
 
+
 public class ScoutMatchFragment extends BaseScoutFragment {
     private static final String TAG = "ScoutMatchFragment";
     private static String MATCH_TYPE = "MATCH_TYPE";
+    private static String MATCH_NUM = "MATCH_NUM";
+    private static String TEAM_POS = "TEAM_POS";
     @BindView(R.id.match_number_input)
     TextInputLayout mMatchNumberInput;
     private int mMatchType;
@@ -73,13 +85,20 @@ public class ScoutMatchFragment extends BaseScoutFragment {
             .observeOn(AndroidSchedulers.mainThread());
 
     public static ScoutMatchFragment newInstance(Event event, int type) {
+        return newInstance(event, type, 1, 0);
+    }
+
+    public static ScoutMatchFragment newInstance(Event event, int type, int matchNum, int teamPos) {
         ScoutMatchFragment scoutMatchFragment = new ScoutMatchFragment();
         Bundle args = new Bundle();
         args.putInt(MATCH_TYPE, type);
         args.putLong(EVENT_ID, event.getId());
+        args.putInt(MATCH_NUM, matchNum);
+        args.putInt(TEAM_POS, teamPos);
         scoutMatchFragment.setArguments(args);
         return scoutMatchFragment;
     }
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -93,13 +112,105 @@ public class ScoutMatchFragment extends BaseScoutFragment {
         return inflater.inflate(R.layout.fragment_scouting_match, null);
     }
 
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState)
+    {
+
+        savedInstanceState.putInt("matchnum", this.getMatchNumber());
+        savedInstanceState.putInt("tests", 2);
+
+        super.onSaveInstanceState(savedInstanceState);
+
+
+    }
+
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         ButterKnife.bind(this, view);
 
-        mMatchNumberInput.getEditText().setText("1");
+
+
+        int mn = 1;
+        mn = this.getArguments().getInt(MATCH_NUM);
+
+        int def_pos = 0;
+        def_pos = this.getArguments().getInt(TEAM_POS);
+
+        mMatchNumberInput.getEditText().setText(Integer.toString(mn));
+
+
+
+        //mRobotSpinner.setSelection(rid.indexOf(teamNum));
+
+
+
+        rxDbManager.robotsAtEvent(getArguments().getLong(EVENT_ID))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .flatMap(robots1 -> {
+                    //robots[0] = robots1;
+                    return Observable.from(robots1);
+                })
+
+                .map(robot -> String.format("%d, %s", robot.getTeam_id(), robot.getTeam().getName()))
+                .toList()
+                .subscribe(onNext -> {
+
+
+                    Match match = rxDbManager.getMatchesTable().query(this.getArguments().getInt("MATCH_NUM"), null, mEvent.getId(), null).unique();
+
+                    JsonObject alliances = JSON.getAsJsonObject(match.getData()).get("alliances").getAsJsonObject();
+                    JsonObject red = alliances.get("red").getAsJsonObject();
+                    JsonObject blue = alliances.get("blue").getAsJsonObject();
+                    JsonArray red_teams = red.get("teams").getAsJsonArray();
+                    JsonArray blue_teams = blue.get("teams").getAsJsonArray();
+
+                    long teamNum = 0;
+
+                    switch(this.getArguments().getInt("TEAM_POS"))
+                    {
+                        case 0: teamNum = Long.parseLong(red_teams.get(0).getAsString().substring(3));
+                            break;
+                        case 1: teamNum = Long.parseLong(red_teams.get(1).getAsString().substring(3));
+                            break;
+                        case 2: teamNum = Long.parseLong(red_teams.get(2).getAsString().substring(3));
+                            break;
+                        case 3: teamNum = Long.parseLong(blue_teams.get(0).getAsString().substring(3));
+                            break;
+                        case 4: teamNum = Long.parseLong(blue_teams.get(1).getAsString().substring(3));
+                            break;
+                        case 5: teamNum = Long.parseLong(blue_teams.get(2).getAsString().substring(3));
+                            break;
+                        default: teamNum = 900;
+                            break;
+                    }
+
+                    List<Match> matches = rxDbManager.getMatchesTable().query(null, null, mEvent.getId(), null).orderAsc(MatchDao.Properties.Match_number).list();
+                    List<Robot> grobots = rxDbManager.getEventsTable().getRobots(mEvent);
+                    Collections.sort(grobots, new Comparator<Robot>() {
+                        @Override
+                        public int compare(Robot r1, Robot r2)
+                        {
+                            return r1.getTeam().getNumber().compareTo(r2.getTeam().getNumber());
+                        }
+                    });
+                    List<Long> rid = new ArrayList<Long>();
+                    for(Robot r : grobots)
+                    {
+                        rid.add(r.getTeam().getNumber());
+                    }
+
+
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_list_item_1, onNext);
+                    mRobotSpinner.setAdapter(adapter);
+                    int index = rid.indexOf(teamNum);
+                    mRobotSpinner.setSelection(index);
+                    updateMetricValues();
+                }, FirebaseCrash::report);
+
 
         subscriptions.add(RxTextView.afterTextChangeEvents(mMatchNumberInput.getEditText())
                 .filter(event -> {
@@ -175,8 +286,7 @@ public class ScoutMatchFragment extends BaseScoutFragment {
                 });
     }
 
-    @Deprecated
-    private int getMatchNumber() {
+    public int getMatchNumber() {
         try {
             return Integer.parseInt(mMatchNumberInput.getEditText().getText().toString());
         } catch (NumberFormatException e) {
@@ -213,3 +323,4 @@ public class ScoutMatchFragment extends BaseScoutFragment {
         }
     }
 }
+

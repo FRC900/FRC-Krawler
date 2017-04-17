@@ -57,6 +57,7 @@
         <activity
             android:name=".activities.ScoutActivity"
             android:screenOrientation="nosensor" />
+            android:id=403
         <activity
             android:name=".activities.MetricInfoActivity"
             android:label="Metric"

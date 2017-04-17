@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
+import android.widget.RadioGroup;
 
 import com.team2052.frckrawler.R;
 import com.team2052.frckrawler.activities.EventInfoActivity;
@@ -81,7 +82,9 @@ public class ServerFragment extends BaseDataFragment<List<Event>, List<String>, 
                     startActivity(EventInfoActivity.newInstance(getActivity(), getSelectedEvent().getId()));
                     return;
                 case R.id.scout_match_button:
-                    startActivity(ScoutActivity.newInstance(getActivity(), getSelectedEvent(), ScoutActivity.MATCH_SCOUT_TYPE));
+                    Intent sa = ScoutActivity.newInstance(getActivity(), getSelectedEvent(), ScoutActivity.MATCH_SCOUT_TYPE);
+                    sa.putExtra("teampos",((RadioGroup)(this.getView().findViewById(getResources().getIdentifier("teamPosButtons","id",getActivity().getPackageName())))).indexOfChild(this.getView().findViewById(((RadioGroup)(this.getView().findViewById(getResources().getIdentifier("teamPosButtons","id",getActivity().getPackageName())))).getCheckedRadioButtonId())));
+                    startActivity(sa);
                     return;
                 case R.id.scout_pit_button:
                     startActivity(ScoutActivity.newInstance(getActivity(), getSelectedEvent(), ScoutActivity.PIT_SCOUT_TYPE));

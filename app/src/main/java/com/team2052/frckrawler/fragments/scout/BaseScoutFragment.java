@@ -1,6 +1,8 @@
 package com.team2052.frckrawler.fragments.scout;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TextInputLayout;
@@ -15,6 +17,7 @@ import com.google.firebase.crash.FirebaseCrash;
 import com.jakewharton.rxbinding.widget.RxAdapterView;
 import com.team2052.frckrawler.R;
 import com.team2052.frckrawler.activities.HasComponent;
+import com.team2052.frckrawler.activities.ScoutActivity;
 import com.team2052.frckrawler.database.RxDBManager;
 import com.team2052.frckrawler.database.metric.MetricValue;
 import com.team2052.frckrawler.db.Event;
@@ -55,6 +58,10 @@ public abstract class BaseScoutFragment extends Fragment {
 
     @BindView(R.id.button_save)
     FloatingActionButton mSaveButton;
+
+    @Nullable
+    @BindView(R.id.button_next)
+    FloatingActionButton mNextButton;
 
     @BindView(R.id.metric_widget_list)
     LinearLayout mMetricList;
@@ -97,6 +104,8 @@ public abstract class BaseScoutFragment extends Fragment {
                     updateMetricValues();
                 }, FirebaseCrash::report);
         super.onViewCreated(view, savedInstanceState);
+
+
     }
 
     public void updateMetricValues() {
@@ -127,6 +136,35 @@ public abstract class BaseScoutFragment extends Fragment {
                 });
         subscriptions.add(saveSubscription);
     }
+
+    //TODO: Move this to ScoutMatchFragment and make button disappear if not MATCH_SCOUT_TYPE
+    @butterknife.Optional
+    @OnClick(R.id.button_next)
+    protected void saveMetricsNext(View viewClicked) {
+        Subscription saveSubscription = getSaveMetricObservable()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(onNext -> {
+                    if (onNext) {
+                        SnackbarUtil.make(getView(), "Save Complete", Snackbar.LENGTH_SHORT).show();
+                    } else {
+                        SnackbarUtil.make(getView(), "Update Complete", Snackbar.LENGTH_SHORT).show();
+                    }
+                }, onError -> {
+                    FirebaseCrash.log("Error Saving Metrics");
+                    FirebaseCrash.report(onError);
+                    SnackbarUtil.make(getView(), "Cannot Save, make sure you double check everything and try again", Snackbar.LENGTH_SHORT).show();
+                });
+        subscriptions.add(saveSubscription);
+
+        getActivity().finish();
+        Intent newIntent = ScoutActivity.newInstance(getActivity(), mEvent, ScoutActivity.MATCH_SCOUT_TYPE);
+        newIntent.putExtra("matchnum", ((ScoutMatchFragment)this).getMatchNumber() + 1);
+        newIntent.putExtra("teampos", this.getActivity().getIntent().getIntExtra("teampos", 0));
+        startActivity(newIntent);
+
+    }
+
 
     @Override
     public void onDestroy() {

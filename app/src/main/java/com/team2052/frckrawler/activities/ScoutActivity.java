@@ -68,7 +68,7 @@ public class ScoutActivity extends DatabaseActivity implements HasComponent {
                 case MATCH_SCOUT_TYPE:
                 default:
                     titleResId = R.string.match_scout;
-                    fragment = ScoutMatchFragment.newInstance(event, MetricHelper.MATCH_GAME_TYPE);
+                    fragment = ScoutMatchFragment.newInstance(event, MetricHelper.MATCH_GAME_TYPE, getIntent().getIntExtra("matchnum", 1), getIntent().getIntExtra("teampos", 0));
             }
 
             if (getSupportActionBar() != null) {
